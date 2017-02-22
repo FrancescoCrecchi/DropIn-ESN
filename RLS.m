@@ -7,7 +7,7 @@ function [best_Wout, last_state] = RLS( esn, trainInputs, trainTargets, washout)
     
     nTimeSeries = size(trainInputs, 1);        
     
-    DEBUG = 1;
+    DEBUG = 0;
     
     % Collecting classes
     classes = [];

@@ -1,11 +1,21 @@
 function [ results ] = test_drop_units_incr( model, inputSequences, targetSequences, washout)
     
+    global example;
+    f = example('objective_function');
+    ds = example('dataset');
+
     n_inputs = model.nInputUnits - 1;
 
     % Allocating results matrix
     results = zeros(n_inputs-2, n_inputs-1);
-
-    for i = 1:(n_inputs-2) % Let at least one unit as input...
+    
+    % in Kitchen task avoid dropping X feature.
+    k = 0;
+    if strcmp(ds, 'Kitchen')
+        k = 1;
+    end
+            
+    for i = 1:(n_inputs-(k+1)) % Let at least one unit as input...
         % Number of input units to drop
         n_drop = i;
 
@@ -32,10 +42,10 @@ function [ results ] = test_drop_units_incr( model, inputSequences, targetSequen
             
             tgtSequences = compute_mutiple_series_targets(targetSequences, washout);
             tgtSequences = cat(1,tgtSequences{:});
-            mae = compute_MAE(predictedSequences, tgtSequences);
+            perf = f(predictedSequences, tgtSequences);
             
             % Updating results
-            results(i,j+1) = mae;
+            results(i,j+1) = perf;
         end
     end
 

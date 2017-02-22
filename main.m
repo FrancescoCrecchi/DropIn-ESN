@@ -11,9 +11,9 @@ if ~exist('results','dir')
 end
 
 %% FLAGS
-MANUAL_TEST = 1;
+MANUAL_TEST = 0;
 MODEL_SELECTION = 0;
-TEST = 0;
+TEST = 1;
 
 MOVEMENT_AAL = 0;
 KITCHEN = 1;
@@ -42,13 +42,13 @@ else
     example('objective') = 'minimize';
 end
 
-%% MANUAL ESN TEST PART
-
-%%%% Fixed parameters
+%% Fixed parameters
 nInputUnits = size(trainInputSequence{1}, 2);
 nOutputUnits = 1;
 
 washout = 10;
+
+%% MANUAL ESN TEST PART
 
 if MANUAL_TEST
     
@@ -69,29 +69,29 @@ if MANUAL_TEST
 %         'ridge_parameter', lambda ...
 % 
 
-    % ESN TEST
-    my_esn = ESN( nInputUnits, nInternalUnits, nOutputUnits, ...
-        'rho', rho, ...
-        'type', 'leaky_esn', ...
-        'leaky_parameter', leaky_param, ...
-        'methodWeightCompute', 'rls', ...
-        'rls_delta', rls_delta, ...
-        'rls_lambda', rls_lambda ...
-   );        
-    
-%     % DROPOUT ESN TEST
-%     p = 0.8;
-%     
-%     my_esn = DropoutESN ( nInputUnits, nInternalUnits, nOutputUnits, ...
+%     % ESN TEST
+%     my_esn = ESN( nInputUnits, nInternalUnits, nOutputUnits, ...
 %         'rho', rho, ...
 %         'type', 'leaky_esn', ...
-%         'leaky_parameter', leaky_param , ...
+%         'leaky_parameter', leaky_param, ...
 %         'methodWeightCompute', 'rls', ...
-%         'rls_lambda', rls_lambda, ...
 %         'rls_delta', rls_delta, ...
-%         'dropout_type', 'dropout', ...
-%         'p', p ...
-%     );
+%         'rls_lambda', rls_lambda ...
+%    );        
+    
+    % DROPOUT ESN TEST
+    p = 0.8;
+    
+    my_esn = DropoutESN ( nInputUnits, nInternalUnits, nOutputUnits, ...
+        'rho', rho, ...
+        'type', 'leaky_esn', ...
+        'leaky_parameter', leaky_param , ...
+        'methodWeightCompute', 'rls', ...
+        'rls_lambda', rls_lambda, ...
+        'rls_delta', rls_delta, ...
+        'dropout_type', 'dropout', ...
+        'p', p ...
+    );
     
     
     % Training
@@ -150,7 +150,7 @@ if MODEL_SELECTION
     
     % Defining model type
     model_type = 'ESN';
-    [ best_model , performance] = model_selection(model_type, fixed_params, hyperparameters, trainInputSequence, trainTargetSequence, model_selection_log_f);
+    [ best_model , performance] = model_selection(model_type, fixed_params, hyperparameters, trainInputSequence, trainTargetSequence, washout, model_selection_log_f);
     
     trained_models = best_model('trained_models');
     model = trained_models(best_model('best_model_idx'));
@@ -190,7 +190,7 @@ if MODEL_SELECTION
         fixed_params('dropout_type') = 'dropout';
         fixed_params('p') = p_param(i);
         
-        [ best_model , performance] = model_selection(model_type, fixed_params, hyperparameters, trainInputSequence, trainTargetSequence, model_selection_log_f);
+        [ best_model , performance] = model_selection(model_type, fixed_params, hyperparameters, trainInputSequence, trainTargetSequence, washout, model_selection_log_f);
         
         trained_models = best_model('trained_models');
         model = trained_models(best_model('best_model_idx'));
@@ -221,32 +221,32 @@ if TEST
     esn = trained_models(best_esn.best_model('best_model_idx'));    
     
     % Plain test
-    [tr_avg_acc, ts_avg_acc] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
-    plain_test_res(1, :) = [tr_avg_acc, ts_avg_acc];
+    [tr_avg_perf, ts_avg_perf] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
+    plain_test_res(1, :) = [tr_avg_perf, ts_avg_perf];
     
     best_desn_p_zero_otto = load('models/zero_otto.mat');
     trained_models = best_desn_p_zero_otto.best_model('trained_models');
     desn_p_zero_otto = trained_models(best_esn.best_model('best_model_idx'));
         
     % Plain test
-    [tr_avg_acc, ts_avg_acc] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
-    plain_test_res(2, :) = [tr_avg_acc, ts_avg_acc];
+    [tr_avg_perf, ts_avg_perf] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
+    plain_test_res(2, :) = [tr_avg_perf, ts_avg_perf];
     
     best_desn_p_zero_cinque = load('models/zero_cinque.mat');
     trained_models = best_desn_p_zero_cinque.best_model('trained_models');
     desn_p_zero_cinque = trained_models(best_esn.best_model('best_model_idx'));
     
     % Plain test
-    [tr_avg_acc, ts_avg_acc] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
-    plain_test_res(3, :) = [tr_avg_acc, ts_avg_acc];
+    [tr_avg_perf, ts_avg_perf] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
+    plain_test_res(3, :) = [tr_avg_perf, ts_avg_perf];
     
     best_desn_p_zero_tre = load('models/zero_tre.mat');
     trained_models = best_desn_p_zero_tre.best_model('trained_models');
     desn_p_zero_tre = trained_models(best_esn.best_model('best_model_idx'));
    
     % Plain test
-    [tr_avg_acc, ts_avg_acc] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
-    plain_test_res(4, :) = [tr_avg_acc, ts_avg_acc];
+    [tr_avg_perf, ts_avg_perf] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
+    plain_test_res(4, :) = [tr_avg_perf, ts_avg_perf];
     
     % Saving plain test results
     save('results/plain_test', 'plain_test_res');
@@ -266,9 +266,10 @@ if TEST
     ts_tgts = compute_mutiple_series_targets(testTargetSequence, washout);
     ts_tgts = cat(1,ts_tgts{:});
     
+    f = example('objective_function');
     for i=1:size(models,2)
         ts_preds = models{i}.test(testInputSequence, NaN, washout);
-        plain_ts_res(i) = compute_MAE(ts_preds, ts_tgts);
+        plain_ts_res(i) = f(ts_preds, ts_tgts);
     end
     
     save('results/best_models_plain_test', 'plain_ts_res');

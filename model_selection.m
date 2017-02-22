@@ -1,7 +1,23 @@
-function [best_model, best_avg_mae] = model_selection (model_type, fixedparams, hyperparams, inputSequence, targetSequence, log_file )
+function [best_model, best_avg_perf] = model_selection (model_type, fixedparams, hyperparams, inputSequence, targetSequence, washout, log_file )
     
-    %% ACHTUNG! FIXED WASHOUT PARAMETER!
-    washout = 10;
+    global example;
+    ds = example('dataset');
+    f = example('objective_function');
+    objective = example('objective');
+    
+    MOVEMENT_AAL = 0;
+    KITCHEN = 0;
+    
+    switch ds
+        case 'Movement AAL'
+            MOVEMENT_AAL = 1;
+        case 'Kitchen'
+            KITCHEN = 1;
+        otherwise
+                error('Unrecognized dataset!');
+    end
+    
+    assert(MOVEMENT_AAL + KITCHEN == 1);
 
     DROPOUT = strcmp(model_type, 'DropoutESN');
     
@@ -22,7 +38,15 @@ function [best_model, best_avg_mae] = model_selection (model_type, fixedparams, 
     
     nInit = 3;
     best_model = NaN;
-    best_avg_mae = inf;
+    
+    switch objective
+        case 'minimize'
+            best_avg_perf = inf;
+        case 'maximize'
+            best_avg_perf = -inf;
+        otherwise
+                error('Unrecognized option!');
+    end
     
     % Shouting model
     if DROPOUT
@@ -49,8 +73,8 @@ function [best_model, best_avg_mae] = model_selection (model_type, fixedparams, 
     fprintf(log_file, '======================================== \n');
     
     %% RESULT MATRICES
-    TR_MAE = zeros(K, nInit * size(nInternalUnits,2) * size(leaky,2) * size(delta,2));
-    VL_MAE = zeros(K, nInit * size(nInternalUnits,2) * size(leaky,2) * size(delta,2));
+    TR_PERF = zeros(K, nInit * size(nInternalUnits,2) * size(leaky,2) * size(delta,2));
+    VL_PERF = zeros(K, nInit * size(nInternalUnits,2) * size(leaky,2) * size(delta,2));
     % Creating models container (one container for each config)
     if DROPOUT
         MODELS = DropoutESN.empty();
@@ -77,8 +101,8 @@ function [best_model, best_avg_mae] = model_selection (model_type, fixedparams, 
                 fprintf(log_file, 'rls_delta = %g \n', delta(d));
 
                 % Stats for configuration
-                current_tr_mae = zeros(K, nInit);
-                current_vl_mae = zeros(K, nInit);
+                current_tr_perf = zeros(K, nInit);
+                current_vl_perf = zeros(K, nInit);
                 if DROPOUT
                     current_models = DropoutESN.empty();
                 else
@@ -142,7 +166,7 @@ function [best_model, best_avg_mae] = model_selection (model_type, fixedparams, 
                         tr_tgts = compute_mutiple_series_targets(tr_target, washout);
                         tr_tgts = cat(1,tr_tgts{:});
                         
-                        tr_mae = compute_MAE(tr_preds, tr_tgts);
+                        tr_perf = f(tr_preds, tr_tgts);
 
                         % evaluate on validation set
                         vl_preds = my_esn.test( vl_input, NaN, washout);
@@ -150,11 +174,11 @@ function [best_model, best_avg_mae] = model_selection (model_type, fixedparams, 
                         vl_tgts = compute_mutiple_series_targets(vl_target, washout);
                         vl_tgts = cat(1,vl_tgts{:});
                         
-                        vl_mae = compute_MAE(vl_preds, vl_tgts);
+                        vl_perf = f(vl_preds, vl_tgts);
 
                         % saving current results
-                        current_tr_mae(i,k) = tr_mae;
-                        current_vl_mae(i,k) = vl_mae;
+                        current_tr_perf(i,k) = tr_perf;
+                        current_vl_perf(i,k) = vl_perf;
 
                     end
 
@@ -165,26 +189,46 @@ function [best_model, best_avg_mae] = model_selection (model_type, fixedparams, 
                 end
 
                 % Computing hyperparams configuration AVG performance
-                avg_mae = mean(current_vl_mae);
-                avg_avg_mae = mean(avg_mae);
-                [min_avg_mae, min_idx] = min(avg_mae);
-                fprintf(log_file, '\nBest AVG_VL_MAE for config: %f obtained with model n. %d \n', min_avg_mae, min_idx);
+                avg_perf = mean(current_vl_perf);
+                avg_avg_perf = mean(avg_perf);
+                
+                % Selecting min or max depending on objective
+                switch objective
+                    case 'minimize'
+                        [current_best_avg_perf, best_idx] = min(avg_perf);
+                    case 'maximize'
+                        [current_best_avg_perf, best_idx] = max(avg_perf);
+                    otherwise
+                            error('Unknown objective!');
+                end                
+                
+                if MOVEMENT_AAL
+                    fprintf(log_file, '\nBest AVG_VL_ACC for config: %f obtained with model n. %d \n', current_best_avg_perf, best_idx);
+                end
+                if KITCHEN
+                    fprintf(log_file, '\nBest AVG_VL_MAE for config: %f obtained with model n. %d \n', current_best_avg_perf, best_idx);
+                end
 
-                if min_avg_mae < best_avg_mae
+                if current_best_avg_perf < best_avg_perf
 
-                    best_avg_mae = min_avg_mae;
-
+                    best_avg_perf = current_best_avg_perf;
+                    
                     fprintf(log_file, '\n======= UPDATING BEST MODEL! =======\n');
-                    fprintf(log_file, 'Expected MAE in: [%f,%f] \n',min_avg_mae, avg_avg_mae);
+                    if MOVEMENT_AAL
+                        fprintf(log_file, 'Expected ACC in: [%f,%f] \n',current_best_avg_perf, avg_avg_perf);
+                    end
+                    if KITCHEN
+                        fprintf(log_file, 'Expected MAE in: [%f,%f] \n',current_best_avg_perf, avg_avg_perf);
+                    end
                     fprintf(log_file, '====================================\n\n');
 
                     % Creating a dictionary containing the best model and
                     % its results
                     best_model = containers.Map();
-                    best_model('best_model_idx') = min_idx;
+                    best_model('best_model_idx') = best_idx;
                     best_model('trained_models') = current_models;
-                    best_model('training_data') = current_tr_mae;
-                    best_model('validation_data') = current_vl_mae;
+                    best_model('training_data') = current_tr_perf;
+                    best_model('validation_data') = current_vl_perf;
 
                     if DROPOUT
                         switch my_esn.p
@@ -210,8 +254,8 @@ function [best_model, best_avg_mae] = model_selection (model_type, fixedparams, 
 
 
                 % Saving config stats
-                TR_MAE(:,mc*nInit+1:mc*nInit+k) = current_tr_mae;
-                VL_MAE(:,mc*nInit+1:mc*nInit+k) = current_vl_mae;
+                TR_PERF(:,mc*nInit+1:mc*nInit+k) = current_tr_perf;
+                VL_PERF(:,mc*nInit+1:mc*nInit+k) = current_vl_perf;
                 MODELS(1, mc*nInit+1:mc*nInit+k) = current_models;
 
                 mc = mc + 1;
@@ -222,8 +266,17 @@ function [best_model, best_avg_mae] = model_selection (model_type, fixedparams, 
     
     %% Saving general stats about model selection
     model_selection = containers.Map();
-    model_selection('TR_MAE') = TR_MAE;
-    model_selection('VL_MAE') = VL_MAE;
+    % Describing the task
+    if MOVEMENT_AAL
+        model_selection('objective function') = 'ACC';
+    end
+    if KITCHEN
+        model_selection('objective function') = 'MAE';
+    end
+    model_selection('objective') = objective;
+    % And the stats obtained
+    model_selection('TR_PERF') = TR_PERF;
+    model_selection('VL_PERF') = VL_PERF;
     model_selection('MODELS') = MODELS;
     save('models/model_selection_recap', 'model_selection');
 end
