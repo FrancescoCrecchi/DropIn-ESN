@@ -106,11 +106,11 @@ classdef DropoutESN < ESN
         
         
         %% TRAIN
-        function last_state = train (obj, trainInputs, trainTargets, washout)
+        function last_state = train (obj, trainInputs, trainTargets, washout, type)
            
             assert(size(trainInputs,1) == size(trainTargets,1));
            
-            [obj.W_out, last_state] = RLS(obj, trainInputs, trainTargets, washout);
+            [obj.W_out, last_state] = RLS(obj, trainInputs, trainTargets, washout, type);
             
             % set trained flag 
             obj.trained = 1;
@@ -118,8 +118,8 @@ classdef DropoutESN < ESN
         end
         
        %% TEST
-        function testPred = test (obj, testInputs, state, washout)
-            testPred = test@ESN(obj, testInputs, state, washout);
+        function testPred = test (obj, testInputs, state, washout, type)
+            testPred = test@ESN(obj, testInputs, state, washout, type);
         end
         
     end
