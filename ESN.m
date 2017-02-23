@@ -124,7 +124,7 @@ classdef ESN < handle
         end
         
         %% TRAIN
-        function last_state = train (obj, trainInputs, trainTargets, washout)
+        function last_state = train (obj, trainInputs, trainTargets, washout, type)
             
             assert(size(trainInputs,1) == size(trainTargets,1));
             
@@ -133,22 +133,33 @@ classdef ESN < handle
             % 'Is it online training?"
             if strcmp(obj.methodWeightCompute, 'rls')
                 
-                [obj.W_out, last_state] = RLS(obj, trainInputs, trainTargets, washout);
+                [obj.W_out, last_state] = RLS(obj, trainInputs, trainTargets, washout, type);
                 
             else % direct methods case
                 
                 % Computing state matrix
-                X = compute_multiple_series_state_matrix(obj, trainInputs, washout, NaN, 'training');
+                X = compute_multiple_series_state_matrix(obj, trainInputs, washout, NaN, 'training');                
                 
-                % Computing targets taking into account intial transient
-                Y = compute_mutiple_series_targets(trainTargets, washout);
+                switch type
+                    case 'seq2seq'
+                        % Computing targets taking into account intial transient
+                        Y = compute_mutiple_series_targets(trainTargets, washout);
+                        % Compressing all X_i into a BIG state matrix
+                        X_tr = cat(2, X{:});
+                        % Compressing targets into a unique sequence
+                        y_tr = cat(1, Y{:});
+                        
+                    case 'seq2elem'
+                        % Root state mapping: selecting last state as
+                        % representative for the entire sequence
+                        foo = cellfun(@(x) x(:,end), X, 'UniformOutput', 0);
+                        X_tr = cat(2,foo{:});
+                        y_tr = trainTargets;
+                    otherwise
+                        error('Unrecognized type!');
+                end
                 
-                % Compressing all X_i into a BIG state matrix
-                X_tr = cat(2, X{:});
                 last_state = X_tr(:,end);
-                
-                % Compressing targets into a unique sequence
-                y_tr = cat(1, Y{:});
                 
                 assert(size(X_tr,2) == size(y_tr,1));
                 
@@ -170,17 +181,30 @@ classdef ESN < handle
         end
         
         %% TEST
-        function testPred = test (obj, testInputs, state, washout)
+        function testPred = test (obj, testInputs, state, washout, type)
             
             if obj.trained == 0
                 error('esn.test: TESTING A NON TRAINED NETWORK!');
             end
             
             X = compute_multiple_series_state_matrix(obj, testInputs, washout, state, 'test');
-            % Compressing all X_i into a BIG state matrix
-            X_ts = cat(2, X{:});
+            
+            switch type
+                    case 'seq2seq'
+                        % Compressing all X_i into a BIG state matrix
+                        X_ts = cat(2, X{:});
+                        
+                    case 'seq2elem'
+                        % Root state mapping: selecting last state as
+                        % representative for the entire sequence
+                        foo = cellfun(@(x) x(:,end), X, 'UniformOutput', 0);
+                        X_ts = cat(2,foo{:});
+                        
+                    otherwise
+                        error('Unrecognized type!');
+            end
 
-           % produce predictions real value'
+           % produce predictions real value
             testPred = (obj.W_out * X_ts)';
             
         end

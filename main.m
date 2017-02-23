@@ -11,12 +11,12 @@ if ~exist('results','dir')
 end
 
 %% FLAGS
-MANUAL_TEST = 0;
+MANUAL_TEST = 1;
 MODEL_SELECTION = 0;
-TEST = 1;
+TEST = 0;
 
-MOVEMENT_AAL = 0;
-KITCHEN = 1;
+MOVEMENT_AAL = 1;
+KITCHEN = 0;
 
 assert(MOVEMENT_AAL + KITCHEN == 1);
 
@@ -63,51 +63,72 @@ if MANUAL_TEST
     rls_delta = 100;
     rls_lambda = 0.9999995;
  
-%         'methodWeightCompute', 'pseudoinverse' ...
+%        'methodWeightCompute', 'pseudoinverse' ...
 %
 %         'methodWeightCompute', 'ridge_regression', ...
 %         'ridge_parameter', lambda ...
 % 
 
-%     % ESN TEST
-%     my_esn = ESN( nInputUnits, nInternalUnits, nOutputUnits, ...
-%         'rho', rho, ...
-%         'type', 'leaky_esn', ...
-%         'leaky_parameter', leaky_param, ...
-%         'methodWeightCompute', 'rls', ...
-%         'rls_delta', rls_delta, ...
-%         'rls_lambda', rls_lambda ...
-%    );        
-    
-    % DROPOUT ESN TEST
-    p = 0.8;
-    
-    my_esn = DropoutESN ( nInputUnits, nInternalUnits, nOutputUnits, ...
+
+    % ESN TEST
+    my_esn = ESN( nInputUnits, nInternalUnits, nOutputUnits, ...
         'rho', rho, ...
         'type', 'leaky_esn', ...
-        'leaky_parameter', leaky_param , ...
+        'leaky_parameter', leaky_param, ...
         'methodWeightCompute', 'rls', ...
-        'rls_lambda', rls_lambda, ...
         'rls_delta', rls_delta, ...
-        'dropout_type', 'dropout', ...
-        'p', p ...
-    );
+        'rls_lambda', rls_lambda ...
+   );        
+    
+%     % DROPOUT ESN TEST
+%     p = 0.8;
+%     
+%     my_esn = DropoutESN ( nInputUnits, nInternalUnits, nOutputUnits, ...
+%         'rho', rho, ...
+%         'type', 'leaky_esn', ...
+%         'leaky_parameter', leaky_param , ...
+%         'methodWeightCompute', 'rls', ...
+%         'rls_lambda', rls_lambda, ...
+%         'rls_delta', rls_delta, ...
+%         'dropout_type', 'dropout', ...
+%         'p', p ...
+%     );
     
     
     % Training
-    ls_tr = my_esn.train(trainInputSequence, trainTargetSequence, washout);
-    tr_preds = my_esn.test(trainInputSequence, NaN, washout);
     
-    tr_tgts = compute_mutiple_series_targets(trainTargetSequence, washout);
-    tr_tgts = cat(1, tr_tgts{:});
+    if MOVEMENT_AAL
+        type = 'seq2elem';
+    else
+        type = 'seq2seq';
+    end
+    
+    ls_tr = my_esn.train(trainInputSequence, trainTargetSequence, washout, type);
+    tr_preds = my_esn.test(trainInputSequence, NaN, washout, type);
+    
+    if MOVEMENT_AAL
+        % Squashing predictions to [-1,1] targets
+        tr_preds = sign(tr_preds);
+        tr_tgts = trainTargetSequence;
+    else
+        tr_tgts = compute_mutiple_series_targets(trainTargetSequence, washout);
+        tr_tgts = cat(1, tr_tgts{:});
+    end
     
     f = example('objective_function');
     tr_perf = f(tr_preds, tr_tgts);
    
     % Test
-    ts_preds = my_esn.test(testInputSequence, NaN, washout);
-    ts_tgts = compute_mutiple_series_targets(testTargetSequence, washout);
-    ts_tgts = cat(1, ts_tgts{:});
+    ts_preds = my_esn.test(testInputSequence, NaN, washout, type);
+    
+    if MOVEMENT_AAL
+        % Squashing predictions to [-1,1] targets
+        ts_preds = sign(ts_preds);
+        ts_tgts = testTargetSequence;
+    else
+        ts_tgts = compute_mutiple_series_targets(testTargetSequence, washout);
+        ts_tgts = cat(1, ts_tgts{:});
+    end
     
     ts_perf = f(ts_preds, ts_tgts);
     

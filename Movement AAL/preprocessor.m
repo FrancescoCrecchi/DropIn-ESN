@@ -1,12 +1,12 @@
 function [ trainInputSequence, trainOutputSequence, testInputSequence, testOutputSequence ] = preprocessor( test_type )
-
-    t = target_importer('./data/MovementAAL_target.csv');
+    
+    t = target_importer('./Movement AAL/data/MovementAAL_target.csv');
     
     input = {};
     target = [];
     
     for i = 1:210
-        [RSS_anchor1,RSS_anchor2,RSS_anchor3,RSS_anchor4] = signals_importer(['./data/MovementAAL_RSS_', int2str(i), '.csv']);
+        [RSS_anchor1,RSS_anchor2,RSS_anchor3,RSS_anchor4] = signals_importer(['./Movement AAL/data/MovementAAL_RSS_', int2str(i), '.csv']);
 
         x1 = RSS_anchor1;
         x2 = RSS_anchor2;
@@ -25,6 +25,8 @@ function [ trainInputSequence, trainOutputSequence, testInputSequence, testOutpu
                 input{i,1} = [x1, x2, x3];
             case 'nonlocal4'
                 input{i,1} = [x1, x2, x3, x4];
+            otherwise
+                error('Unrecognized preprocessor option!');
         end 
                 
         target(i,1) = t(i);
