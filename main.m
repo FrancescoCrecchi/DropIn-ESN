@@ -13,9 +13,9 @@ if ~exist('results','dir')
 end
 
 %% FLAGS
-MANUAL_TEST = 0;
-MODEL_SELECTION = 1;
-TEST = 1;
+MANUAL_TEST = 1;
+MODEL_SELECTION = 0;
+TEST = 0;
 
 MOVEMENT_AAL = 0;
 KITCHEN = 1;
@@ -98,7 +98,6 @@ if MANUAL_TEST
         'methodWeightCompute', 'rls', ...
         'rls_lambda', rls_lambda, ...
         'rls_delta', rls_delta, ...
-        'dropout_type', 'dropout', ...
         'p', p ...
     );
     
@@ -154,9 +153,14 @@ if MODEL_SELECTION
         );
     
     % Hyperparameters
-    nInternalUnits = [50, 100, 300, 500];
-    leaky_parameter = [0.1, 0.2, 0.3, 0.5];
-    rls_delta = [0.001, 0.01, 0.1, 1, 10, 100, 1000];
+%     nInternalUnits = [50, 100, 300, 500];
+%     leaky_parameter = [0.1, 0.2, 0.3, 0.5];
+%     rls_delta = [0.001, 0.01, 0.1, 1, 10, 100, 1000];
+    
+    %% TODO REMOVE THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    nInternalUnits = [10, 20];
+    leaky_parameter = [0.1];
+    rls_delta = [0.001, 0.01];
     
     hyperparameters = containers.Map();
     hyperparameters('nInternalUnits') = nInternalUnits;
@@ -208,7 +212,6 @@ if MODEL_SELECTION
         model_selection_log_f = fopen(strcat('models/',filename),'w');
         
         % And dropout params
-        fixed_params('dropout_type') = 'dropout';
         fixed_params('p') = p_param(i);
         
         data = model_selection(model_type, fixed_params, hyperparameters, trainInputSequence, trainTargetSequence, washout, type, model_selection_log_f);
