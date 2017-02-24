@@ -27,8 +27,6 @@ classdef ESN < handle
     methods
         function obj = ESN(nInputUnits, nInternalUnits, nOutputUnits, varargin)
             
-            addpath('../.');
-            
             % set the number of units
             obj.nInputUnits = nInputUnits + 1; % +1 for the bias unit
             obj.nReservoirUnits = nInternalUnits; 

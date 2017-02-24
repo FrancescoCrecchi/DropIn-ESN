@@ -12,10 +12,7 @@ classdef DropoutWrapper
         end
         
         function output = train(obj, output)
-            % Construct a Bernoulli(p) matrix
-            % r = rand(size(output)) < obj.p;
-            % output = output .* r;
-            
+           
             % Generating a random permutation
             n = size(output,2);
             perm = randperm(n);

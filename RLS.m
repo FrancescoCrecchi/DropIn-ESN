@@ -26,7 +26,7 @@ function [best_Wout, last_state] = RLS( esn, trainInputs, trainTargets, washout,
     validationInputSequence = trainInputs(c.test);
     validationTargetSequence = trainTargets(c.test);
     
-    %% Computing validation state matrix and targets (NO CHANGES!)
+    %% Computing validation state matrix and targets
     
     X_vl = compute_multiple_series_state_matrix(esn, validationInputSequence, washout, NaN, 'test');
     switch type
@@ -83,7 +83,6 @@ function [best_Wout, last_state] = RLS( esn, trainInputs, trainTargets, washout,
         trainInputSequence = trainInputSequence(perm, :);
         trainTargetSequence = trainTargetSequence(perm, :);
         
-            
         switch type
             case 'seq2elem'
                 
@@ -176,7 +175,6 @@ function [best_Wout, last_state] = RLS( esn, trainInputs, trainTargets, washout,
         last_state = X(:, end);
         
         %% END OF EPOCH HERE! => CHECK EARLY STOPPING CONDITION!
-        
         
         switch ds
             case 'Movement AAL'
