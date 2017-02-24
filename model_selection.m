@@ -1,4 +1,4 @@
-function [best_model, best_avg_perf] = model_selection (model_type, fixedparams, hyperparams, inputSequence, targetSequence, washout, log_file )
+function [data] = model_selection (model_type, fixedparams, hyperparams, inputSequence, targetSequence, washout, type, log_file )
     
     global example;
     ds = example('dataset');
@@ -24,7 +24,11 @@ function [best_model, best_avg_perf] = model_selection (model_type, fixedparams,
     % Collecting classes
     classes = [];
     for i = 1:size(targetSequence,1)
-        classes(i,1) = targetSequence{i,1}(end);
+        if MOVEMENT_AAL
+            classes(i,1) = targetSequence(i);
+        else
+            classes(i,1) = targetSequence{i,1}(end);
+        end
     end
    
     % perform K-fold CV ( k = 3 )
@@ -36,8 +40,7 @@ function [best_model, best_avg_perf] = model_selection (model_type, fixedparams,
     leaky = hyperparams('leaky_parameter');
     delta = hyperparams('rls_delta');
     
-    nInit = 3;
-    best_model = NaN;
+    nInit = 3;   
     
     switch objective
         case 'minimize'
@@ -159,22 +162,30 @@ function [best_model, best_avg_perf] = model_selection (model_type, fixedparams,
                         vl_target = targetSequence(vlIdxs, 1);
 
                         % training on training set
-                        my_esn.train( tr_input, tr_target, washout);
+                        my_esn.train( tr_input, tr_target, washout, type);
                         % evaluate on training set
-                        tr_preds = my_esn.test( tr_input, NaN, washout);
+                        tr_preds = my_esn.test( tr_input, NaN, washout, type);
                         
-                        tr_tgts = compute_mutiple_series_targets(tr_target, washout);
-                        tr_tgts = cat(1,tr_tgts{:});
+                        if MOVEMENT_AAL
+                            tr_perf = f(tr_target, sign(tr_preds));
+                        else
+                            tr_tgts = compute_mutiple_series_targets(tr_target, washout);
+                            tr_tgts = cat(1,tr_tgts{:});
                         
-                        tr_perf = f(tr_preds, tr_tgts);
+                            tr_perf = f(tr_preds, tr_tgts);
+                        end
 
                         % evaluate on validation set
-                        vl_preds = my_esn.test( vl_input, NaN, washout);
+                        vl_preds = my_esn.test( vl_input, NaN, washout, type);
                         
-                        vl_tgts = compute_mutiple_series_targets(vl_target, washout);
-                        vl_tgts = cat(1,vl_tgts{:});
+                        if MOVEMENT_AAL
+                            vl_perf = f(vl_target, sign(vl_preds));
+                        else
+                            vl_tgts = compute_mutiple_series_targets(vl_target, washout);
+                            vl_tgts = cat(1,vl_tgts{:});
                         
-                        vl_perf = f(vl_preds, vl_tgts);
+                            vl_perf = f(vl_preds, vl_tgts);
+                        end
 
                         % saving current results
                         current_tr_perf(i,k) = tr_perf;
@@ -196,8 +207,10 @@ function [best_model, best_avg_perf] = model_selection (model_type, fixedparams,
                 switch objective
                     case 'minimize'
                         [current_best_avg_perf, best_idx] = min(avg_perf);
+                        is_better = @ (a,b) a < b;
                     case 'maximize'
                         [current_best_avg_perf, best_idx] = max(avg_perf);
+                        is_better = @ (a,b) a > b;
                     otherwise
                             error('Unknown objective!');
                 end                
@@ -209,7 +222,7 @@ function [best_model, best_avg_perf] = model_selection (model_type, fixedparams,
                     fprintf(log_file, '\nBest AVG_VL_MAE for config: %f obtained with model n. %d \n', current_best_avg_perf, best_idx);
                 end
 
-                if current_best_avg_perf < best_avg_perf
+                if is_better(current_best_avg_perf,best_avg_perf)
 
                     best_avg_perf = current_best_avg_perf;
                     
@@ -221,14 +234,6 @@ function [best_model, best_avg_perf] = model_selection (model_type, fixedparams,
                         fprintf(log_file, 'Expected MAE in: [%f,%f] \n',current_best_avg_perf, avg_avg_perf);
                     end
                     fprintf(log_file, '====================================\n\n');
-
-                    % Creating a dictionary containing the best model and
-                    % its results
-                    best_model = containers.Map();
-                    best_model('best_model_idx') = best_idx;
-                    best_model('trained_models') = current_models;
-                    best_model('training_data') = current_tr_perf;
-                    best_model('validation_data') = current_vl_perf;
 
                     if DROPOUT
                         switch my_esn.p
@@ -245,9 +250,18 @@ function [best_model, best_avg_perf] = model_selection (model_type, fixedparams,
                     else
                         filename = 'esn';
                     end
-
+                    
+                    % Creating a dictionary containing the best model and
+                    % its results
+                    data = containers.Map();
+                    data('best_model_idx') = best_idx;
+                    data('best_avg_perf') = best_avg_perf;
+                    data('trained_models') = current_models;
+                    data('training_data') = current_tr_perf;
+                    data('validation_data') = current_vl_perf;
+                    
                     % Saving best model
-                    save(strcat('models/',filename) , 'best_model');
+                    save(strcat('models/',filename) , 'data');
                 end
 
                 fprintf(log_file, '-------------------------------------\n');

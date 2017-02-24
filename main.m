@@ -13,14 +13,20 @@ if ~exist('results','dir')
 end
 
 %% FLAGS
-MANUAL_TEST = 1;
-MODEL_SELECTION = 0;
-TEST = 0;
+MANUAL_TEST = 0;
+MODEL_SELECTION = 1;
+TEST = 1;
 
 MOVEMENT_AAL = 0;
 KITCHEN = 1;
 
 assert(MOVEMENT_AAL + KITCHEN == 1);
+
+if MOVEMENT_AAL
+    type = 'seq2elem';
+else
+    type = 'seq2seq';
+end
 
 %% READ DATA
 global example
@@ -96,14 +102,6 @@ if MANUAL_TEST
         'p', p ...
     );
     
-    
-    % Training
-    if MOVEMENT_AAL
-        type = 'seq2elem';
-    else
-        type = 'seq2seq';
-    end
-    
     ls_tr = my_esn.train(trainInputSequence, trainTargetSequence, washout, type);
     tr_preds = my_esn.test(trainInputSequence, NaN, washout, type);
     
@@ -156,9 +154,9 @@ if MODEL_SELECTION
         );
     
     % Hyperparameters
-    nInternalUnits = [10, 20];
-    leaky_parameter = [0.1];
-    rls_delta = [0.001, 0.01];
+    nInternalUnits = [50, 100, 300, 500];
+    leaky_parameter = [0.1, 0.2, 0.3, 0.5];
+    rls_delta = [0.001, 0.01, 0.1, 1, 10, 100, 1000];
     
     hyperparameters = containers.Map();
     hyperparameters('nInternalUnits') = nInternalUnits;
@@ -172,16 +170,17 @@ if MODEL_SELECTION
     
     % Defining model type
     model_type = 'ESN';
-    [ best_model , performance] = model_selection(model_type, fixed_params, hyperparameters, trainInputSequence, trainTargetSequence, washout, model_selection_log_f);
+    data = model_selection(model_type, fixed_params, hyperparameters, trainInputSequence, trainTargetSequence, washout, type, model_selection_log_f);
     
-    trained_models = best_model('trained_models');
-    model = trained_models(best_model('best_model_idx'));
+    trained_models = data('trained_models');
+    best_model = trained_models(data('best_model_idx'));
+    performance = data('best_avg_perf');
     
     fprintf(model_selection_log_f, '============ ESN Best model selected ============ \n');
     fprintf(model_selection_log_f, 'Hyperparameters: \n');
-    fprintf(model_selection_log_f, ' - nInternalUnits: %d \n', model.nReservoirUnits);
-    fprintf(model_selection_log_f, ' - leaky_parameter: %g \n', model.leaky_parameter);
-    fprintf(model_selection_log_f, ' - rls_delta: %g \n', model.rls_delta);
+    fprintf(model_selection_log_f, ' - nInternalUnits: %d \n', best_model.nReservoirUnits);
+    fprintf(model_selection_log_f, ' - leaky_parameter: %g \n', best_model.leaky_parameter);
+    fprintf(model_selection_log_f, ' - rls_delta: %g \n', best_model.rls_delta);
     fprintf(model_selection_log_f, ' --> Expected performace (MAE): %g \n', performance);
     fprintf(model_selection_log_f, '================================================ \n');
     
@@ -212,17 +211,18 @@ if MODEL_SELECTION
         fixed_params('dropout_type') = 'dropout';
         fixed_params('p') = p_param(i);
         
-        [ best_model , performance] = model_selection(model_type, fixed_params, hyperparameters, trainInputSequence, trainTargetSequence, washout, model_selection_log_f);
+        data = model_selection(model_type, fixed_params, hyperparameters, trainInputSequence, trainTargetSequence, washout, type, model_selection_log_f);
         
-        trained_models = best_model('trained_models');
-        model = trained_models(best_model('best_model_idx'));
+        trained_models = data('trained_models');
+        best_model = trained_models(data('best_model_idx'));
+        performance = data('best_avg_perf');
         
         fprintf(model_selection_log_f, '============ DropoutESN Best model selected ============ \n');
         fprintf(model_selection_log_f, 'Percentage of input retaining: %g \n', p_param(i));
         fprintf(model_selection_log_f, 'Hyperparameters: \n');
-        fprintf(model_selection_log_f, ' - nInternalUnits: %d \n', model.nReservoirUnits);
-        fprintf(model_selection_log_f, ' - leaky_parameter: %g \n', model.leaky_parameter);
-        fprintf(model_selection_log_f, ' - rls_delta: %g \n', model.rls_delta);
+        fprintf(model_selection_log_f, ' - nInternalUnits: %d \n', best_model.nReservoirUnits);
+        fprintf(model_selection_log_f, ' - leaky_parameter: %g \n', best_model.leaky_parameter);
+        fprintf(model_selection_log_f, ' - rls_delta: %g \n', best_model.rls_delta);
         fprintf(model_selection_log_f, ' --> Expected performace (MAE): %g \n', performance);
         fprintf(model_selection_log_f, '================================================ \n');
         
@@ -234,75 +234,64 @@ end
 
 if TEST
     
-    % Plain test
-    plain_test_res = zeros(4,2);
-    
     %% Loading models
-    best_esn = load('models/esn.mat');
-    trained_models = best_esn.best_model('trained_models');
-    esn = trained_models(best_esn.best_model('best_model_idx'));    
+    esn = load('models/esn.mat');
+    desn_p_zero_otto = load('models/zero_otto.mat');
+    desn_p_zero_cinque = load('models/zero_cinque.mat');
+    desn_p_zero_tre = load('models/zero_tre.mat');
+    
+    models_to_test = [esn, desn_p_zero_otto, desn_p_zero_cinque, desn_p_zero_tre];
     
     % Plain test
-    [tr_avg_perf, ts_avg_perf] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
-    plain_test_res(1, :) = [tr_avg_perf, ts_avg_perf];
+    models_stats = zeros(4,2);
     
-    best_desn_p_zero_otto = load('models/zero_otto.mat');
-    trained_models = best_desn_p_zero_otto.best_model('trained_models');
-    desn_p_zero_otto = trained_models(best_esn.best_model('best_model_idx'));
+    for i = 1:size(models_to_test,2)
+        [results, best_model] = compute_model_statistics(models_to_test(i), trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout, type);
         
-    % Plain test
-    [tr_avg_perf, ts_avg_perf] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
-    plain_test_res(2, :) = [tr_avg_perf, ts_avg_perf];
-    
-    best_desn_p_zero_cinque = load('models/zero_cinque.mat');
-    trained_models = best_desn_p_zero_cinque.best_model('trained_models');
-    desn_p_zero_cinque = trained_models(best_esn.best_model('best_model_idx'));
-    
-    % Plain test
-    [tr_avg_perf, ts_avg_perf] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
-    plain_test_res(3, :) = [tr_avg_perf, ts_avg_perf];
-    
-    best_desn_p_zero_tre = load('models/zero_tre.mat');
-    trained_models = best_desn_p_zero_tre.best_model('trained_models');
-    desn_p_zero_tre = trained_models(best_esn.best_model('best_model_idx'));
-   
-    % Plain test
-    [tr_avg_perf, ts_avg_perf] = plain_test(trained_models, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout);
-    plain_test_res(4, :) = [tr_avg_perf, ts_avg_perf];
+        models_stats(i, :) = results;
+        best_models{i} = best_model;
+    end
     
     % Saving plain test results
-    save('results/plain_test', 'plain_test_res');
+    save('results/models_stats', 'models_stats');
     
     %% Selecting best topologies for Dropout test
-    models = { esn, desn_p_zero_otto, desn_p_zero_cinque, desn_p_zero_tre };
     
-    % Training every model on training data (TR+VL)
-    for i = 1:size(models,2)
-        model = models{i};
-        model.train(trainInputSequence, trainTargetSequence, washout);
+    % Training every best_model on training data (TR+VL)
+    for i = 1:size(best_models,2)
+        best_model = best_models{i};
+        best_model.train(trainInputSequence, trainTargetSequence, washout, type);
     end
     
     % First of all I want to test all models on test set (plain).
-    plain_ts_res = zeros(size(models));
+    best_models_plain_test = zeros(size(best_models));
     
-    ts_tgts = compute_mutiple_series_targets(testTargetSequence, washout);
-    ts_tgts = cat(1,ts_tgts{:});
+    if MOVEMENT_AAL
+       ts_tgts = testTargetSequence; 
+    else
+       ts_tgts = compute_mutiple_series_targets(testTargetSequence, washout);
+       ts_tgts = cat(1,ts_tgts{:});
+    end
     
     f = example('objective_function');
-    for i=1:size(models,2)
-        ts_preds = models{i}.test(testInputSequence, NaN, washout);
-        plain_ts_res(i) = f(ts_preds, ts_tgts);
+    for i=1:size(best_models,2)
+        ts_preds = best_models{i}.test(testInputSequence, NaN, washout, type);
+        if MOVEMENT_AAL
+            best_models_plain_test(i) = f(ts_tgts, sign(ts_preds));
+        else
+            best_models_plain_test(i) = f(ts_tgts, ts_preds);
+        end
     end
     
-    save('results/best_models_plain_test', 'plain_ts_res');
+    save('results/best_models_plain_test', 'best_models_plain_test');
 
     % Then it's the funny stuff: start removing units from ts_input!
-    dropping_ts_res = {};
-    for i=1:size(models,2)
-        dropping_ts_res{i,1} = test_drop_units_incr(models{i}, testInputSequence, testTargetSequence, washout);
+    best_models_dropping_test = {};
+    for i=1:size(best_models,2)
+        best_models_dropping_test{i,1} = test_drop_units_incr(best_models{i}, testInputSequence, testTargetSequence, washout, type);
     end
     
-    save('results/best_models_dropping_test', 'dropping_ts_res');
+    save('results/best_models_dropping_test', 'best_models_dropping_test');
     
 end
 

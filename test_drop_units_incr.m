@@ -1,4 +1,4 @@
-function [ results ] = test_drop_units_incr( model, inputSequences, targetSequences, washout)
+function [ results ] = test_drop_units_incr( model, inputSequences, targetSequences, washout, type)
     
     global example;
     f = example('objective_function');
@@ -38,11 +38,18 @@ function [ results ] = test_drop_units_incr( model, inputSequences, targetSequen
             end
 
             % Testing model on this test input configuration
-            predictedSequences = model.test(missing_values_input, NaN, washout);
+            predictedSequences = model.test(missing_values_input, NaN, washout, type);
             
-            tgtSequences = compute_mutiple_series_targets(targetSequences, washout);
-            tgtSequences = cat(1,tgtSequences{:});
-            perf = f(predictedSequences, tgtSequences);
+            switch ds
+                case 'Movement AAL'
+                    perf = f(targetSequences, sign(predictedSequences));
+                case 'Kitchen'
+                    tgtSequences = compute_mutiple_series_targets(targetSequences, washout);
+                    tgtSequences = cat(1,tgtSequences{:});
+                    perf = f(tgtSequences, predictedSequences);
+                otherwise
+                    error('Unrecognized dataset!');
+            end
             
             % Updating results
             results(i,j+1) = perf;
