@@ -236,11 +236,11 @@ function [data] = model_selection (model_type, fixedparams, hyperparams, inputSe
                     if DROPOUT
                         switch my_esn.p
                             case 0.8
-                                filename = 'zero_otto';
+                                filename = 'zero_eight';
                             case 0.5
-                                filename = 'zero_cinque';
+                                filename = 'zero_five';
                             case 0.3
-                                filename = 'zero_tre';
+                                filename = 'zero_three';
 
                             otherwise
                                 error('ERROR:I do not know why but p is not set!')

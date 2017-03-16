@@ -1,7 +1,5 @@
 %%% main script
 clear all;
-rmpath Kitchen\
-rmpath 'Movement AAL'\
 
 %% INITIAL WORKSPACE SETUP 
 if ~exist('models','dir')
@@ -13,12 +11,12 @@ if ~exist('results','dir')
 end
 
 %% FLAGS
-MANUAL_TEST = 1;
+MANUAL_TEST = 0;
 MODEL_SELECTION = 0;
-TEST = 0;
+TEST = 1;
 
-MOVEMENT_AAL = 0;
-KITCHEN = 1;
+MOVEMENT_AAL = 1;
+KITCHEN = 0;
 
 assert(MOVEMENT_AAL + KITCHEN == 1);
 
@@ -33,7 +31,7 @@ global example
 example = containers.Map();
 
 if MOVEMENT_AAL
-    addpath 'Movement AAL'\
+    addpath 'Movement AAL'
     [ trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence ] = preprocessor('nonlocal4');
     
     % Configuring example
@@ -41,7 +39,7 @@ if MOVEMENT_AAL
     example('objective_function') = @(preds, tgts) check_accuracy(preds, tgts);
     example('objective') = 'maximize';
 else
-    addpath Kitchen\
+    addpath 'Kitchen'
     [ trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence ] = preprocessor();
     
     % Configuring example
@@ -71,13 +69,14 @@ if MANUAL_TEST
     rls_delta = 100;
     rls_lambda = 0.9999995;
  
+% Choose 'methodWeightCompute' to substitute into ESN initialization from
+% commented parts below
+%
 %        'methodWeightCompute', 'pseudoinverse' ...
 %
 %         'methodWeightCompute', 'ridge_regression', ...
 %         'ridge_parameter', lambda ...
 % 
-
-
 %     % ESN TEST
 %     my_esn = ESN( nInputUnits, nInternalUnits, nOutputUnits, ...
 %         'rho', rho, ...
@@ -88,7 +87,7 @@ if MANUAL_TEST
 %         'rls_lambda', rls_lambda ...
 %    );        
     
-    % DROPOUT ESN TEST
+% Or test DropoutESN choosing input retaining probability
     p = 0.8;
     
     my_esn = DropoutESN ( nInputUnits, nInternalUnits, nOutputUnits, ...
@@ -185,7 +184,13 @@ if MODEL_SELECTION
     fprintf(model_selection_log_f, ' - nInternalUnits: %d \n', best_model.nReservoirUnits);
     fprintf(model_selection_log_f, ' - leaky_parameter: %g \n', best_model.leaky_parameter);
     fprintf(model_selection_log_f, ' - rls_delta: %g \n', best_model.rls_delta);
-    fprintf(model_selection_log_f, ' --> Expected performace (MAE): %g \n', performance);
+    
+    if MOVEMENT_AAL
+        fprintf(model_selection_log_f, ' --> Expected performace (ACC): %g \n', performance);
+    else
+        fprintf(model_selection_log_f, ' --> Expected performace (MAE): %g \n', performance);
+    end
+
     fprintf(model_selection_log_f, '================================================ \n');
     
     fclose(model_selection_log_f);
@@ -199,11 +204,11 @@ if MODEL_SELECTION
         
         switch p_param(i)
             case 0.8
-                filename = 'zero_otto.log';
+                filename = 'zero_eight.log';
             case 0.5
-                filename = 'zero_cinque.log';
+                filename = 'zero_five.log';
             case 0.3
-                filename = 'zero_tre.log';
+                filename = 'zero_three.log';
                 
             otherwise
                 error('ERROR: performing model selection on DropoutESN, unknown p set!')
@@ -226,7 +231,14 @@ if MODEL_SELECTION
         fprintf(model_selection_log_f, ' - nInternalUnits: %d \n', best_model.nReservoirUnits);
         fprintf(model_selection_log_f, ' - leaky_parameter: %g \n', best_model.leaky_parameter);
         fprintf(model_selection_log_f, ' - rls_delta: %g \n', best_model.rls_delta);
-        fprintf(model_selection_log_f, ' --> Expected performace (MAE): %g \n', performance);
+        
+
+        if MOVEMENT_AAL
+            fprintf(model_selection_log_f, ' --> Expected performace (ACC): %g \n', performance);
+        else
+            fprintf(model_selection_log_f, ' --> Expected performace (MAE): %g \n', performance);
+        end
+
         fprintf(model_selection_log_f, '================================================ \n');
         
         fclose(model_selection_log_f);
@@ -237,56 +249,58 @@ end
 
 if TEST
     
-    %% Loading models
-    esn = load('models/esn.mat');
-    desn_p_zero_otto = load('models/zero_otto.mat');
-    desn_p_zero_cinque = load('models/zero_cinque.mat');
-    desn_p_zero_tre = load('models/zero_tre.mat');
-    
-    models_to_test = [esn, desn_p_zero_otto, desn_p_zero_cinque, desn_p_zero_tre];
-    
-    % Plain test
-    models_stats = zeros(4,2);
-    
-    for i = 1:size(models_to_test,2)
-        [results, best_model] = compute_model_statistics(models_to_test(i), trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout, type);
-        
-        models_stats(i, :) = results;
-        best_models{i} = best_model;
-    end
-    
-    % Saving plain test results
-    save('results/models_stats', 'models_stats');
+%     %% Loading models
+%     esn = load('models/esn.mat');
+%     desn_p_zero_otto = load('models/zero_eight.mat');
+%     desn_p_zero_cinque = load('models/zero_five.mat');
+%     desn_p_zero_tre = load('models/zero_three.mat');
+%     
+%     models_to_test = [esn, desn_p_zero_otto, desn_p_zero_cinque, desn_p_zero_tre];
+%     
+%     % Plain test
+%     models_stats = zeros(4,2);
+%     
+%     for i = 1:size(models_to_test,2)
+%         [results, best_model] = compute_model_statistics(models_to_test(i), trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout, type);
+%         
+%         models_stats(i, :) = results;
+%         best_models{i} = best_model;
+%     end
+%     
+%     % Saving plain test results
+%     save('results/models_stats', 'models_stats');
     
     %% Selecting best topologies for Dropout test
     
+    load('models/best_models');
+    
     % Training every best_model on training data (TR+VL)
-    for i = 1:size(best_models,2)
-        best_model = best_models{i};
-        best_model.train(trainInputSequence, trainTargetSequence, washout, type);
-    end
-    
-    % First of all I want to test all models on test set (plain).
-    best_models_plain_test = zeros(size(best_models));
-    
-    if MOVEMENT_AAL
-       ts_tgts = testTargetSequence; 
-    else
-       ts_tgts = compute_mutiple_series_targets(testTargetSequence, washout);
-       ts_tgts = cat(1,ts_tgts{:});
-    end
-    
-    f = example('objective_function');
-    for i=1:size(best_models,2)
-        ts_preds = best_models{i}.test(testInputSequence, NaN, washout, type);
-        if MOVEMENT_AAL
-            best_models_plain_test(i) = f(ts_tgts, sign(ts_preds));
-        else
-            best_models_plain_test(i) = f(ts_tgts, ts_preds);
-        end
-    end
-    
-    save('results/best_models_plain_test', 'best_models_plain_test');
+%     for i = 1:size(best_models,2)
+%         best_model = best_models{i};
+%         best_model.train(trainInputSequence, trainTargetSequence, washout, type);
+%     end
+%     
+%     % First of all I want to test all models on test set (plain).
+%     best_models_plain_test = zeros(size(best_models));
+%     
+%     if MOVEMENT_AAL
+%        ts_tgts = testTargetSequence; 
+%     else
+%        ts_tgts = compute_mutiple_series_targets(testTargetSequence, washout);
+%        ts_tgts = cat(1,ts_tgts{:});
+%     end
+%     
+%     f = example('objective_function');
+%     for i=1:size(best_models,2)
+%         ts_preds = best_models{i}.test(testInputSequence, NaN, washout, type);
+%         if MOVEMENT_AAL
+%             best_models_plain_test(i) = f(ts_tgts, sign(ts_preds));
+%         else
+%             best_models_plain_test(i) = f(ts_tgts, ts_preds);
+%         end
+%     end
+%     
+%     save('results/best_models_plain_test', 'best_models_plain_test');
 
     % Then it's the funny stuff: start removing units from ts_input!
     best_models_dropping_test = {};
@@ -296,6 +310,13 @@ if TEST
     
     save('results/best_models_dropping_test', 'best_models_dropping_test');
     
+end
+
+% Clearing PATH
+if MOVEMENT_AAL
+    rmpath 'Movement AAL'
+else
+    rmpath 'Kitchen'
 end
 
 fprintf('Bye bye :-) \n');

@@ -5,29 +5,31 @@ function [ results ] = test_drop_units_incr( model, inputSequences, targetSequen
     ds = example('dataset');
 
     n_inputs = model.nInputUnits - 1;
+	
+
+    % in Kitchen task avoid dropping X feature.
+    z = 0;
+    if strcmp(ds, 'Kitchen')
+        z = 1;
+    end
 
     % Allocating results matrix
-    results = zeros(n_inputs-2, n_inputs-1);
-    
-    % in Kitchen task avoid dropping X feature.
-    k = 0;
-    if strcmp(ds, 'Kitchen')
-        k = 1;
-    end
+    results = zeros(n_inputs-(z+1), n_inputs-z);
+
             
-    for i = 1:(n_inputs-(k+1)) % Let at least one unit as input...
+    for i = 1:(n_inputs-(z+1)) % Let at least one unit as input...
         % Number of input units to drop
         n_drop = i;
 
         % Dropping units in a RR fashion
-        for j = 0:n_inputs-2
+        for j = 0:n_inputs-(z+1)
             
             missing_values_input = inputSequences;
             
             % Constructing dropping mask
             mask = ones(1, n_inputs);
             for d = 0:n_drop-1
-                mask(mod(j+d, n_inputs-1)+1) = 0;
+                mask(mod(j+d, n_inputs-z)+1) = 0;
             end
 
             % Masking inputs

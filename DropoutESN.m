@@ -50,8 +50,15 @@ classdef DropoutESN < ESN
                 % Avoid dropping bias
                 foo = obj.DropoutIn.train(ones(1, obj.nInputUnits-1));
                 mask = cat(2, foo, 1);
+                
+% Although you can uncomment the part below to test the averaging factor multiplication of 
+% input matrix (as suggested in any Dropout regularization approach) the
+% autors do not reccomend this because it leads to worse performances since
+% the reservoir itself takes into account for the model averaging factor.
+% 
 %                 else
 %                     WIN = obj.DropoutIn.test(WIN);
+
             end
                         
             for i = 1:nDataPoints
