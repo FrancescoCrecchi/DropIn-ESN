@@ -15,8 +15,8 @@ MANUAL_TEST = 0;
 MODEL_SELECTION = 0;
 TEST = 1;
 
-MOVEMENT_AAL = 1;
-KITCHEN = 0;
+MOVEMENT_AAL = 0;
+KITCHEN = 1;
 
 assert(MOVEMENT_AAL + KITCHEN == 1);
 
@@ -152,14 +152,9 @@ if MODEL_SELECTION
         );
     
     % Hyperparameters
-%     nInternalUnits = [50, 100, 300, 500];
-%     leaky_parameter = [0.1, 0.2, 0.3, 0.5];
-%     rls_delta = [0.001, 0.01, 0.1, 1, 10, 100, 1000];
-    
-    %% TODO REMOVE THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    nInternalUnits = [10, 20];
-    leaky_parameter = [0.1];
-    rls_delta = [0.001, 0.01];
+    nInternalUnits = [50, 100, 300, 500];
+    leaky_parameter = [0.1, 0.2, 0.3, 0.5];
+    rls_delta = [0.001, 0.01, 0.1, 1, 10, 100, 1000];
     
     hyperparameters = containers.Map();
     hyperparameters('nInternalUnits') = nInternalUnits;
@@ -249,59 +244,58 @@ end
 
 if TEST
     
-%     %% Loading models
-%     esn = load('models/esn.mat');
-%     desn_p_zero_otto = load('models/zero_eight.mat');
-%     desn_p_zero_cinque = load('models/zero_five.mat');
-%     desn_p_zero_tre = load('models/zero_three.mat');
-%     
-%     models_to_test = [esn, desn_p_zero_otto, desn_p_zero_cinque, desn_p_zero_tre];
-%     
-%     % Plain test
-%     models_stats = zeros(4,2);
-%     
-%     for i = 1:size(models_to_test,2)
-%         [results, best_model] = compute_model_statistics(models_to_test(i), trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout, type);
-%         
-%         models_stats(i, :) = results;
-%         best_models{i} = best_model;
-%     end
-%     
-%     % Saving plain test results
-%     save('results/models_stats', 'models_stats');
     
-    %% Selecting best topologies for Dropout test
+    %% Loading models
+    esn = load('models/esn.mat');
+    desn_p_zero_eight = load('models/zero_eight.mat');
+    desn_p_zero_five = load('models/zero_five.mat');
+    desn_p_zero_three = load('models/zero_three.mat');
     
-    load('models/best_models');
+    models_to_test = {esn, desn_p_zero_eight, desn_p_zero_five, desn_p_zero_three};
+    
+    % Plain test
+    models_stats = zeros(4,2);
+    
+    for i = 1:size(models_to_test,2)
+        [results, best_model] = compute_model_statistics(models_to_test{i}, trainInputSequence, trainTargetSequence, testInputSequence, testTargetSequence, washout, type);
+        
+        models_stats(i, :) = results;
+        best_models{i} = best_model;
+    end
+    
+    % Saving plain test results
+    save('results/models_stats', 'models_stats');
+    
+    %% Selecting best topologies for Dropout test    
     
     % Training every best_model on training data (TR+VL)
-%     for i = 1:size(best_models,2)
-%         best_model = best_models{i};
-%         best_model.train(trainInputSequence, trainTargetSequence, washout, type);
-%     end
-%     
-%     % First of all I want to test all models on test set (plain).
-%     best_models_plain_test = zeros(size(best_models));
-%     
-%     if MOVEMENT_AAL
-%        ts_tgts = testTargetSequence; 
-%     else
-%        ts_tgts = compute_mutiple_series_targets(testTargetSequence, washout);
-%        ts_tgts = cat(1,ts_tgts{:});
-%     end
-%     
-%     f = example('objective_function');
-%     for i=1:size(best_models,2)
-%         ts_preds = best_models{i}.test(testInputSequence, NaN, washout, type);
-%         if MOVEMENT_AAL
-%             best_models_plain_test(i) = f(ts_tgts, sign(ts_preds));
-%         else
-%             best_models_plain_test(i) = f(ts_tgts, ts_preds);
-%         end
-%     end
-%     
-%     save('results/best_models_plain_test', 'best_models_plain_test');
-
+    for i = 1:size(best_models,2)
+        best_model = best_models{i};
+        best_model.train(trainInputSequence, trainTargetSequence, washout, type);
+    end
+    
+    % First of all I want to test all models on test set (plain).
+    best_models_plain_test = zeros(size(best_models));
+    
+    if MOVEMENT_AAL
+       ts_tgts = testTargetSequence; 
+    else
+       ts_tgts = compute_mutiple_series_targets(testTargetSequence, washout);
+       ts_tgts = cat(1,ts_tgts{:});
+    end
+    
+    f = example('objective_function');
+    for i=1:size(best_models,2)
+        ts_preds = best_models{i}.test(testInputSequence, NaN, washout, type);
+        if MOVEMENT_AAL
+            best_models_plain_test(i) = f(ts_tgts, sign(ts_preds));
+        else
+            best_models_plain_test(i) = f(ts_preds, ts_tgts);
+        end
+    end
+    
+    save('results/best_models_plain_test', 'best_models_plain_test');
+    
     % Then it's the funny stuff: start removing units from ts_input!
     best_models_dropping_test = {};
     for i=1:size(best_models,2)
