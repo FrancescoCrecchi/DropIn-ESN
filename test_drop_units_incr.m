@@ -48,7 +48,7 @@ function [ results ] = test_drop_units_incr( model, inputSequences, targetSequen
                 case 'Kitchen'
                     tgtSequences = compute_mutiple_series_targets(targetSequences, washout);
                     tgtSequences = cat(1,tgtSequences{:});
-                    perf = f(tgtSequences, predictedSequences);
+                    perf = f(predictedSequences, tgtSequences);
                 otherwise
                     error('Unrecognized dataset!');
             end
