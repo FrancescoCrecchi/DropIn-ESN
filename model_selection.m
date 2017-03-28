@@ -165,7 +165,7 @@ function [data] = model_selection (model_type, fixedparams, hyperparams, inputSe
                         tr_preds = my_esn.test( tr_input, NaN, washout, type);
                         
                         if MOVEMENT_AAL
-                            tr_perf = f(tr_target, sign(tr_preds));
+                            tr_perf = f(sign(tr_preds), tr_target);
                         else
                             tr_tgts = compute_mutiple_series_targets(tr_target, washout);
                             tr_tgts = cat(1,tr_tgts{:});
@@ -177,7 +177,7 @@ function [data] = model_selection (model_type, fixedparams, hyperparams, inputSe
                         vl_preds = my_esn.test( vl_input, NaN, washout, type);
                         
                         if MOVEMENT_AAL
-                            vl_perf = f(vl_target, sign(vl_preds));
+                            vl_perf = f(sign(vl_preds), vl_target);
                         else
                             vl_tgts = compute_mutiple_series_targets(vl_target, washout);
                             vl_tgts = cat(1,vl_tgts{:});

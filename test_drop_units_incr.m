@@ -44,7 +44,7 @@ function [ results ] = test_drop_units_incr( model, inputSequences, targetSequen
             
             switch ds
                 case 'Movement AAL'
-                    perf = f(targetSequences, sign(predictedSequences));
+                    perf = f(sign(predictedSequences), targetSequences);
                 case 'Kitchen'
                     tgtSequences = compute_mutiple_series_targets(targetSequences, washout);
                     tgtSequences = cat(1,tgtSequences{:});

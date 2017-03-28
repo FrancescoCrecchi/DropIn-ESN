@@ -181,7 +181,7 @@ function [best_Wout, last_state] = RLS( esn, trainInputs, trainTargets, washout,
                 
                 % Computing performance on validation set
                 vl_preds = (w * X_vl)';
-                val_perf = f(y_vl,sign(vl_preds));
+                val_perf = f(sign(vl_preds), y_vl);
                 
                 if DEBUG
                     X_tr = compute_multiple_series_state_matrix(esn, trainInputSequence, washout, NaN, 'test');
@@ -192,7 +192,7 @@ function [best_Wout, last_state] = RLS( esn, trainInputs, trainTargets, washout,
                     
                     y_tr = trainTargetSequence;
                     
-                    TR_PERF(epoch+1,1) = f(y_tr, sign(tr_preds));
+                    TR_PERF(epoch+1,1) = f(sign(tr_preds), y_tr);
                     VL_PERF(epoch+1,1) = val_perf;
                 end
                 

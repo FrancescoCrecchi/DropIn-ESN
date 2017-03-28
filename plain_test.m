@@ -29,7 +29,7 @@ function [ tr_avg_perf, ts_avg_perf ] = plain_test( models, trInputs,trTargets, 
         tr_preds = model.test(trInputs, NaN, washout, type);
         
         if MOVEMENT_AAL
-            tr_perf = f(trTargets, sign(tr_preds));
+            tr_perf = f(sign(tr_preds), trTargets);
         else
             tr_tgts = compute_mutiple_series_targets(trTargets, washout);
             tr_tgts = cat(1,tr_tgts{:});
@@ -41,7 +41,7 @@ function [ tr_avg_perf, ts_avg_perf ] = plain_test( models, trInputs,trTargets, 
         ts_preds = model.test(tsInputs, NaN, washout, type);
         
         if MOVEMENT_AAL
-            ts_perf = f(tsTargets, sign(ts_preds));
+            ts_perf = f(sign(ts_preds), tsTargets);
         else
             ts_tgts = compute_mutiple_series_targets(tsTargets, washout);
             ts_tgts = cat(1,ts_tgts{:});

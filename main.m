@@ -36,7 +36,7 @@ if MOVEMENT_AAL
     
     % Configuring example
     example('dataset') = 'Movement AAL';
-    example('objective_function') = @(preds, tgts) check_accuracy(preds, tgts);
+    example('objective_function') = @(preds, tgts) check_accuracy(tgts, preds);
     example('objective') = 'maximize';
 else
     addpath 'Kitchen'
@@ -44,7 +44,7 @@ else
     
     % Configuring example
     example('dataset') = 'Kitchen';
-    example('objective_function') = @(preds, tgts) compute_MAE(preds,tgts);
+    example('objective_function') = @(preds, tgts) compute_MAE(tgts, preds);
     example('objective') = 'minimize';
 end
 
@@ -58,7 +58,7 @@ washout = 10;
 
 if MANUAL_TEST
     
-    nInternalUnits = 100;
+    nInternalUnits = 500;
     rho = 0.9;
     leaky_param = 0.5;
     
@@ -88,7 +88,7 @@ if MANUAL_TEST
 %    );        
     
 % Or test DropoutESN choosing input retaining probability
-    p = 0.8;
+    p = 0.3;
     
     my_esn = DropoutESN ( nInputUnits, nInternalUnits, nOutputUnits, ...
         'rho', rho, ...
@@ -288,7 +288,7 @@ if TEST
     for i=1:size(best_models,2)
         ts_preds = best_models{i}.test(testInputSequence, NaN, washout, type);
         if MOVEMENT_AAL
-            best_models_plain_test(i) = f(ts_tgts, sign(ts_preds));
+            best_models_plain_test(i) = f(sign(ts_preds), ts_tgts);
         else
             best_models_plain_test(i) = f(ts_preds, ts_tgts);
         end
