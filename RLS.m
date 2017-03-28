@@ -7,7 +7,7 @@ function [best_Wout, last_state] = RLS( esn, trainInputs, trainTargets, washout,
     
     nTimeSeries = size(trainInputs, 1);        
     
-    DEBUG = 0;
+    DEBUG = 1;
     
     % Collecting classes
     if strcmp(type, 'seq2elem')
@@ -50,7 +50,7 @@ function [best_Wout, last_state] = RLS( esn, trainInputs, trainTargets, washout,
     
     %% Early stopping method
     max_epochs = 100;
-    max_patience = 10;           % look as this many epochs regardless
+    max_patience = 50;           % look as this many epochs regardless
     min_vl_improvement = 5e-2;
     done = false;
     
